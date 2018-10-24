@@ -32,6 +32,7 @@ import (
 
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/hooks"
+	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/proto/hapi/release"
 	"k8s.io/helm/pkg/proto/hapi/services"
@@ -310,7 +311,7 @@ func (s *ReleaseServer) renderResources(ch *chart.Chart, values chartutil.Values
 	// Sort hooks, manifests, and partials. Only hooks and manifests are returned,
 	// as partials are not used after renderer.Render. Empty manifests are also
 	// removed here.
-	hooks, manifests, err := sortManifests(files, vs, InstallOrder)
+	hooks, manifests, err := manifest.Partition(files, vs, manifest.InstallOrder)
 	if err != nil {
 		// By catching parse errors here, we can prevent bogus releases from going
 		// to Kubernetes.
@@ -351,7 +352,7 @@ func (s *ReleaseServer) recordRelease(r *release.Release, reuse bool) {
 
 func (s *ReleaseServer) execHook(hs []*release.Hook, name, namespace, hook string, timeout int64) error {
 	kubeCli := s.env.KubeClient
-	code, ok := events[hook]
+	code, ok := hooks.Events[hook]
 	if !ok {
 		return fmt.Errorf("unknown hook %s", hook)
 	}
@@ -442,7 +443,7 @@ func (s *ReleaseServer) deleteHookByPolicy(h *release.Hook, policy string, name,
 // hookShouldBeDeleted determines whether the defined hook deletion policy matches the hook deletion polices
 // supported by helm. If so, mark the hook as one should be deleted.
 func hookHasDeletePolicy(h *release.Hook, policy string) bool {
-	if dp, ok := deletePolices[policy]; ok {
+	if dp, ok := hooks.DeletePolices[policy]; ok {
 		for _, v := range h.DeletePolicies {
 			if dp == v {
 				return true

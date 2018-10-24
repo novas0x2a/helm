@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tiller
+package manifest
 
 import (
 	"fmt"
@@ -27,33 +27,9 @@ import (
 
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/hooks"
-	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/release"
 	util "k8s.io/helm/pkg/releaseutil"
 )
-
-var events = map[string]release.Hook_Event{
-	hooks.PreInstall:         release.Hook_PRE_INSTALL,
-	hooks.PostInstall:        release.Hook_POST_INSTALL,
-	hooks.PreDelete:          release.Hook_PRE_DELETE,
-	hooks.PostDelete:         release.Hook_POST_DELETE,
-	hooks.PreUpgrade:         release.Hook_PRE_UPGRADE,
-	hooks.PostUpgrade:        release.Hook_POST_UPGRADE,
-	hooks.PreRollback:        release.Hook_PRE_ROLLBACK,
-	hooks.PostRollback:       release.Hook_POST_ROLLBACK,
-	hooks.ReleaseTestSuccess: release.Hook_RELEASE_TEST_SUCCESS,
-	hooks.ReleaseTestFailure: release.Hook_RELEASE_TEST_FAILURE,
-	hooks.CRDInstall:         release.Hook_CRD_INSTALL,
-}
-
-// deletePolices represents a mapping between the key in the annotation for label deleting policy and its real meaning
-var deletePolices = map[string]release.Hook_DeletePolicy{
-	hooks.HookSucceeded:      release.Hook_SUCCEEDED,
-	hooks.HookFailed:         release.Hook_FAILED,
-	hooks.BeforeHookCreation: release.Hook_BEFORE_HOOK_CREATION,
-}
-
-type Manifest = manifest.Manifest
 
 type result struct {
 	hooks   []*release.Hook
@@ -66,8 +42,8 @@ type manifestFile struct {
 	apis    chartutil.VersionSet
 }
 
-// sortManifests takes a map of filename/YAML contents, splits the file
-// by manifest entries, and sorts the entries into hook types.
+// Partition takes a map of filename/YAML contents, splits the file by manifest
+// entries, and sorts the entries into hook types.
 //
 // The resulting hooks struct will be populated with all of the generated hooks.
 // Any file that does not declare one of the hook types will be placed in the
@@ -75,7 +51,7 @@ type manifestFile struct {
 //
 // Files that do not parse into the expected format are simply placed into a map and
 // returned.
-func sortManifests(files map[string]string, apis chartutil.VersionSet, sort SortOrder) ([]*release.Hook, []Manifest, error) {
+func Partition(files map[string]string, apis chartutil.VersionSet, sort SortOrder) ([]*release.Hook, []Manifest, error) {
 	result := &result{}
 
 	for filePath, c := range files {
@@ -168,7 +144,7 @@ func (file *manifestFile) sort(result *result) error {
 		isUnknownHook := false
 		for _, hookType := range strings.Split(hookTypes, ",") {
 			hookType = strings.ToLower(strings.TrimSpace(hookType))
-			e, ok := events[hookType]
+			e, ok := hooks.Events[hookType]
 			if !ok {
 				isUnknownHook = true
 				break
@@ -184,7 +160,7 @@ func (file *manifestFile) sort(result *result) error {
 		result.hooks = append(result.hooks, h)
 
 		operateAnnotationValues(entry, hooks.HookDeleteAnno, func(value string) {
-			policy, exist := deletePolices[value]
+			policy, exist := hooks.DeletePolices[value]
 			if exist {
 				h.DeletePolicies = append(h.DeletePolicies, policy)
 			} else {
