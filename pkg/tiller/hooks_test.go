@@ -23,6 +23,7 @@ import (
 	"github.com/ghodss/yaml"
 
 	"k8s.io/helm/pkg/chartutil"
+	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/release"
 	util "k8s.io/helm/pkg/releaseutil"
 )
@@ -140,7 +141,7 @@ metadata:
 		manifests[o.path] = o.manifest
 	}
 
-	hs, generic, err := sortManifests(manifests, chartutil.NewVersionSet("v1", "v1beta1"), InstallOrder)
+	hs, generic, err := manifest.Partition(manifests, chartutil.NewVersionSet("v1", "v1beta1"), manifest.InstallOrder)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -194,7 +195,7 @@ metadata:
 	}
 
 	// Verify the sort order
-	sorted := []Manifest{}
+	sorted := []manifest.Manifest{}
 	for _, s := range data {
 		manifests := util.SplitManifests(s.manifest)
 
@@ -211,7 +212,7 @@ metadata:
 
 			//only keep track of non-hook manifests
 			if err == nil && s.hooks[name] == nil {
-				another := Manifest{
+				another := manifest.Manifest{
 					Content: m,
 					Name:    name,
 					Head:    &sh,
@@ -221,7 +222,7 @@ metadata:
 		}
 	}
 
-	sorted = sortByKind(sorted, InstallOrder)
+	sorted = manifest.SortByKind(sorted)
 	for i, m := range generic {
 		if m.Content != sorted[i].Content {
 			t.Errorf("Expected %q, got %q", m.Content, sorted[i].Content)

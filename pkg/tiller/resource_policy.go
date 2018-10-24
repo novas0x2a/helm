@@ -21,6 +21,7 @@ import (
 	"strings"
 
 	"k8s.io/helm/pkg/kube"
+	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/tiller/environment"
 )
 
@@ -33,9 +34,9 @@ const resourcePolicyAnno = "helm.sh/resource-policy"
 //   during an uninstallRelease action.
 const keepPolicy = "keep"
 
-func filterManifestsToKeep(manifests []Manifest) ([]Manifest, []Manifest) {
-	remaining := []Manifest{}
-	keep := []Manifest{}
+func filterManifestsToKeep(manifests []manifest.Manifest) ([]manifest.Manifest, []manifest.Manifest) {
+	remaining := []manifest.Manifest{}
+	keep := []manifest.Manifest{}
 
 	for _, m := range manifests {
 		if m.Head.Metadata == nil || m.Head.Metadata.Annotations == nil || len(m.Head.Metadata.Annotations) == 0 {
@@ -58,7 +59,7 @@ func filterManifestsToKeep(manifests []Manifest) ([]Manifest, []Manifest) {
 	return keep, remaining
 }
 
-func summarizeKeptManifests(manifests []Manifest, kubeClient environment.KubeClient, namespace string) string {
+func summarizeKeptManifests(manifests []manifest.Manifest, kubeClient environment.KubeClient, namespace string) string {
 	var message string
 	for _, m := range manifests {
 		// check if m is in fact present from k8s client's POV.
