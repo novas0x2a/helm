@@ -31,6 +31,18 @@ import (
 	util "k8s.io/helm/pkg/releaseutil"
 )
 
+// NOTESFILE_SUFFIX that we want to treat special. It goes through the templating engine
+// but it's not a yaml file (resource) hence can't have hooks, etc. And the user actually
+// wants to see this file after rendering in the status command. However, it must be a suffix
+// since there can be filepath in front of it.
+const notesFileSuffix = "NOTES.txt"
+
+// This is the path relative to the root of the chart of the parent notes file;
+// we use a glob to replace the name of the chart so we don't have to know that.
+// Note: We don't use filePath.Join since it creates a path with \ which is not
+// expected.
+const notesFileParentGlob = "*/templates/NOTES.txt"
+
 type result struct {
 	hooks   []*release.Hook
 	generic []Manifest
@@ -51,8 +63,10 @@ type manifestFile struct {
 //
 // Files that do not parse into the expected format are simply placed into a map and
 // returned.
-func Partition(files map[string]string, apis chartutil.VersionSet, sort SortOrder) ([]*release.Hook, []Manifest, error) {
+func Partition(files map[string]string, apis chartutil.VersionSet, sort SortOrder) ([]*release.Hook, []Manifest, string, error) {
 	result := &result{}
+
+	notes := ""
 
 	for filePath, c := range files {
 
@@ -67,6 +81,16 @@ func Partition(files map[string]string, apis chartutil.VersionSet, sort SortOrde
 			continue
 		}
 
+		if strings.HasSuffix(filePath, notesFileSuffix) {
+			// Only apply the notes if it belongs to the parent chart
+			if matched, err := path.Match(notesFileParentGlob, filePath); err != nil {
+				return result.hooks, result.generic, notes, err
+			} else if matched {
+				notes = c
+			}
+			continue
+		}
+
 		manifestFile := &manifestFile{
 			entries: util.SplitManifests(c),
 			path:    filePath,
@@ -74,11 +98,11 @@ func Partition(files map[string]string, apis chartutil.VersionSet, sort SortOrde
 		}
 
 		if err := manifestFile.sort(result); err != nil {
-			return result.hooks, result.generic, err
+			return result.hooks, result.generic, notes, err
 		}
 	}
 
-	return result.hooks, sortByKind(result.generic, sort), nil
+	return result.hooks, sortByKind(result.generic, sort), notes, nil
 }
 
 // sort takes a manifestFile object which may contain multiple resource definition
