@@ -179,48 +179,58 @@ func (t *templateCmd) run(cmd *cobra.Command, args []string) error {
 		printRelease(os.Stdout, rel)
 	}
 
-	listManifests := manifest.SplitManifests(renderedTemplates)
-	var manifestsToRender []manifest.Manifest
+	// The renderedTemplates all have filenames with the chart name in them; in
+	// addition, the filenames are all rendered using linux-style filepath
+	// separators on Windows as well as macOS/linux. Convert the filenames to
+	// local filenames.
+	filesWithLocalPaths := make(map[string]string, len(renderedTemplates))
+
+	for name, content := range renderedTemplates {
+		manifestPathSplit := strings.Split(name, "/")
+		// remove the chart name from the path
+		manifestPathSplit = manifestPathSplit[1:]
+		toJoin := append([]string{t.chartPath}, manifestPathSplit...)
+		manifestPath := filepath.Join(toJoin...)
+
+		filesWithLocalPaths[manifestPath] = content
+	}
+
+	filesToDisplay := filesWithLocalPaths
 
 	// if we have a list of files to render, then check that each of the
 	// provided files exists in the chart.
 	if len(t.renderFiles) > 0 {
+		filesToDisplay = make(map[string]string, len(t.renderFiles))
+
 		for _, f := range t.renderFiles {
-			missing := true
 			if !filepath.IsAbs(f) {
-				newF, err := filepath.Abs(filepath.Join(t.chartPath, f))
-				if err != nil {
-					return fmt.Errorf("could not turn template path %s into absolute path: %s", f, err)
+				newF, fErr := filepath.Abs(filepath.Join(t.chartPath, f))
+				if fErr != nil {
+					return fmt.Errorf("could not turn template path %s into absolute path: %s", f, fErr)
 				}
 				f = newF
 			}
 
-			for _, manifest := range listManifests {
-				// manifest.Name is rendered using linux-style filepath separators on Windows as
-				// well as macOS/linux.
-				manifestPathSplit := strings.Split(manifest.Name, "/")
-				// remove the chart name from the path
-				manifestPathSplit = manifestPathSplit[1:]
-				toJoin := append([]string{t.chartPath}, manifestPathSplit...)
-				manifestPath := filepath.Join(toJoin...)
-
-				// if the filepath provided matches a manifest path in the
-				// chart, render that manifest
-				if f == manifestPath {
-					manifestsToRender = append(manifestsToRender, manifest)
-					missing = false
-				}
-			}
-			if missing {
+			if manifest, found := filesWithLocalPaths[f]; found {
+				filesToDisplay[f] = manifest
+			} else {
 				return fmt.Errorf("could not find template %s in chart", f)
 			}
 		}
-	} else {
-		// no renderFiles provided, render all manifests in the chart
-		manifestsToRender = listManifests
 	}
 
-	for _, m := range manifest.SortByKind(manifestsToRender) {
+	_, manifests, notes, err := manifest.Partition(filesToDisplay, chartutil.DefaultVersionSet, manifest.InstallOrder)
+	if err != nil {
+		return err
+	}
+
+	// re-add the notes into the main manifest loop to avoid weird logic
+	manifests = append(manifests, manifest.Manifest{
+		Name:    "NOTES.txt",
+		Content: notes,
+	})
+
+	for _, m := range manifests {
 		data := m.Content
 		b := filepath.Base(m.Name)
 		if !t.showNotes && b == "NOTES.txt" {
