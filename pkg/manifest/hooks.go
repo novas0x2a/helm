@@ -106,6 +106,31 @@ func Partition(files map[string]string, apis chartutil.VersionSet, sort SortOrde
 	return result.hooks, sortByKind(result.generic, sort), notes, nil
 }
 
+// FlattenFiles will turn a manifest (in the form of a files map) back into a
+// single buffer.
+func FlattenFiles(files map[string]string) *bytes.Buffer {
+	var b bytes.Buffer
+	for name, content := range files {
+		if len(strings.TrimSpace(content)) == 0 {
+			continue
+		}
+		b.WriteString("\n---\n# Source: " + name + "\n")
+		b.WriteString(content)
+	}
+	return &b
+}
+
+// FlattenManifests will turn a manifest (in the form of a partitioned slice)
+// back into a single buffer.
+func FlattenManifests(manifests []Manifest) *bytes.Buffer {
+	var b bytes.Buffer
+	for _, m := range manifests {
+		b.WriteString("\n---\n# Source: " + m.Name + "\n")
+		b.WriteString(m.Content)
+	}
+	return &b
+}
+
 // sort takes a manifestFile object which may contain multiple resource definition
 // entries and sorts each entry by hook types, and saves the resulting hooks and
 // generic manifests (or non-hooks) to the result struct.
