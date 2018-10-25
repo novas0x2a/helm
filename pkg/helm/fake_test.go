@@ -247,10 +247,10 @@ func TestFakeClient_InstallReleaseFromChart(t *testing.T) {
 				opts: []InstallOption{ReleaseName("new-release")},
 			},
 			want: &rls.InstallReleaseResponse{
-				Release: withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release"}), false),
+				Release: withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", OmitDefaultHook: true}), false),
 			},
 			relsAfter: []*release.Release{
-				withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release"}), false),
+				withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", OmitDefaultHook: true}), false),
 			},
 			wantErr: false,
 		},
@@ -402,6 +402,7 @@ func TestFakeClient_UpdateReleaseFromChart(t *testing.T) {
 				Release: releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2}),
 			},
 			relsAfter: []*release.Release{
+				releaseWithChart(&MockReleaseOptions{Name: "new-release"}),
 				releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2}),
 			},
 		},
@@ -418,10 +419,11 @@ func TestFakeClient_UpdateReleaseFromChart(t *testing.T) {
 				opts:    []UpdateOption{},
 			},
 			want: &rls.UpdateReleaseResponse{
-				Release: withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2}), true),
+				Release: withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2, OmitDefaultHook: true}), true),
 			},
 			relsAfter: []*release.Release{
-				withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2}), true),
+				releaseWithChart(&MockReleaseOptions{Name: "new-release"}),
+				withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2, OmitDefaultHook: true}), true),
 			},
 			wantErr: false,
 		},
@@ -480,7 +482,12 @@ func TestFakeClient_ReleaseHistory(t *testing.T) {
 				opts:    nil,
 			},
 			want: &rls.GetHistoryResponse{
-				Releases: rels,
+				Releases: []*release.Release{
+					ReleaseMock(&MockReleaseOptions{Name: relName, Version: 4}),
+					ReleaseMock(&MockReleaseOptions{Name: relName, Version: 3}),
+					ReleaseMock(&MockReleaseOptions{Name: relName, Version: 2}),
+					ReleaseMock(&MockReleaseOptions{Name: relName, Version: 1}),
+				},
 			},
 			wantErr: false,
 		},
@@ -496,7 +503,10 @@ func TestFakeClient_ReleaseHistory(t *testing.T) {
 				},
 			},
 			want: &rls.GetHistoryResponse{
-				Releases: rels[:2],
+				Releases: []*release.Release{
+					ReleaseMock(&MockReleaseOptions{Name: relName, Version: 4}),
+					ReleaseMock(&MockReleaseOptions{Name: relName, Version: 3}),
+				},
 			},
 			wantErr: false,
 		},

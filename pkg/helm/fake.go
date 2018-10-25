@@ -17,10 +17,9 @@ limitations under the License.
 package helm // import "k8s.io/helm/pkg/helm"
 
 import (
-	"bytes"
 	"errors"
+	"fmt"
 	"math/rand"
-	"strings"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
@@ -31,6 +30,7 @@ import (
 	"k8s.io/helm/pkg/proto/hapi/release"
 	rls "k8s.io/helm/pkg/proto/hapi/services"
 	"k8s.io/helm/pkg/proto/hapi/version"
+	relutil "k8s.io/helm/pkg/releaseutil"
 	"k8s.io/helm/pkg/renderutil"
 	storageerrors "k8s.io/helm/pkg/storage/errors"
 )
@@ -140,16 +140,26 @@ func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts
 
 // DeleteRelease deletes a release from the FakeClient
 func (c *FakeClient) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
-	for i, rel := range c.Rels {
+	var ret *release.Release
+	rels := make([]*release.Release, 0)
+	for _, rel := range c.Rels {
 		if rel.Name == rlsName {
-			c.Rels = append(c.Rels[:i], c.Rels[i+1:]...)
-			return &rls.UninstallReleaseResponse{
-				Release: rel,
-			}, nil
+			ret = rel
+		} else {
+			rels = append(rels, rel)
 		}
 	}
 
-	return nil, storageerrors.ErrReleaseNotFound(rlsName)
+	if ret == nil {
+		return nil, storageerrors.ErrReleaseNotFound(rlsName)
+	}
+
+	c.Rels = rels
+
+	return &rls.UninstallReleaseResponse{
+		Release: ret,
+	}, nil
+
 }
 
 // GetVersion returns a fake version
@@ -182,7 +192,7 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 		opt(&c.Opts)
 	}
 	// Check to see if the release already exists.
-	rel, err := c.ReleaseContent(rlsName, nil)
+	rel, err := c.ReleaseContent(rlsName)
 	if err != nil {
 		return nil, err
 	}
@@ -211,20 +221,72 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 	}
 
 	if !c.Opts.dryRun {
-		*rel.Release = *newRelease
+		c.Rels = append(c.Rels, newRelease)
 	}
 
 	return &rls.UpdateReleaseResponse{Release: newRelease}, nil
 }
 
-// RollbackRelease returns nil, nil
+// RollbackRelease will roll a release back
 func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
-	return nil, nil
+	for _, opt := range opts {
+		opt(&c.Opts)
+	}
+
+	// Check to see if the release already exists.
+	rel, err := c.ReleaseHistory(rlsName)
+	if err != nil {
+		return nil, err
+	}
+
+	cur := rel.Releases[0]
+	tgtv := cur.Version - 1
+
+	if c.Opts.rollbackReq.Version != 0 {
+		tgtv = c.Opts.rollbackReq.Version
+	}
+
+	var tgt *release.Release
+	for _, r := range rel.Releases {
+		if r.Version == tgtv {
+			tgt = r
+		}
+	}
+
+	if tgt == nil {
+		return nil, storageerrors.ErrReleaseNotFound(fmt.Sprintf("%s.v%d", rlsName, tgtv))
+	}
+
+	newRelease := &release.Release{
+		Name:      rlsName,
+		Namespace: tgt.Namespace,
+		Chart:     tgt.Chart,
+		Config:    tgt.Config,
+		Info: &release.Info{
+			FirstDeployed: cur.Info.FirstDeployed,
+			LastDeployed:  &timestamp.Timestamp{Seconds: 242085845, Nanos: 0},
+			Status: &release.Status{
+				Code:  release.Status_DEPLOYED,
+				Notes: tgt.Info.Status.Notes,
+			},
+			Description: c.Opts.rollbackReq.Description,
+		},
+		Version:  cur.Version + 1,
+		Manifest: tgt.Manifest,
+		Hooks:    tgt.Hooks,
+	}
+
+	if !c.Opts.dryRun {
+		c.Rels = append(c.Rels, newRelease)
+	}
+
+	return &rls.RollbackReleaseResponse{Release: newRelease}, nil
 }
 
 // ReleaseStatus returns a release status response with info from the matching release name.
 func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
-	for _, rel := range c.Rels {
+	for i := len(c.Rels) - 1; i >= 0; i-- {
+		rel := c.Rels[i]
 		if rel.Name == rlsName {
 			return &rls.GetReleaseStatusResponse{
 				Name:      rel.Name,
@@ -238,34 +300,57 @@ func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.G
 
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
 func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
-	for _, rel := range c.Rels {
-		if rel.Name == rlsName {
+	for _, opt := range opts {
+		opt(&c.Opts)
+	}
+
+	for i := len(c.Rels) - 1; i >= 0; i-- {
+		rel := c.Rels[i]
+		if rel.Name == rlsName && (c.Opts.contentReq.Version == 0 || c.Opts.contentReq.Version == rel.Version) {
 			return &rls.GetReleaseContentResponse{
 				Release: rel,
 			}, nil
 		}
 	}
-	return resp, storageerrors.ErrReleaseNotFound(rlsName)
+
+	n := rlsName
+	if c.Opts.contentReq.Version != 0 {
+		n = fmt.Sprintf("%s.v%d", rlsName, c.Opts.contentReq.Version)
+	}
+	return resp, storageerrors.ErrReleaseNotFound(n)
 }
 
 // ReleaseHistory returns a release's revision history.
 func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
-	reqOpts := c.Opts
 	for _, opt := range opts {
-		opt(&reqOpts)
+		opt(&c.Opts)
 	}
-	maxLen := int(reqOpts.histReq.Max)
 
-	var resp rls.GetHistoryResponse
-	for _, rel := range c.Rels {
-		if maxLen > 0 && len(resp.Releases) >= maxLen {
-			return &resp, nil
-		}
-		if rel.Name == rlsName {
-			resp.Releases = append(resp.Releases, rel)
+	var ret []*release.Release
+	for _, r := range c.Rels {
+		if r.Name == rlsName {
+			ret = append(ret, r)
 		}
 	}
-	return &resp, nil
+
+	relutil.Reverse(ret, relutil.SortByRevision)
+
+	m := int(c.Opts.histReq.Max)
+
+	switch {
+	case m == 0:
+		// nothing
+	case m < 0:
+		return nil, errors.New("release history max < 0")
+	case m >= len(ret):
+		// also fine
+	default:
+		ret = ret[0:m]
+	}
+	if len(ret) == 0 {
+		return nil, storageerrors.ErrReleaseNotFound(rlsName)
+	}
+	return &rls.GetHistoryResponse{Releases: ret}, nil
 }
 
 // RunReleaseTest executes a pre-defined tests on a release
@@ -315,13 +400,15 @@ metadata:
 
 // MockReleaseOptions allows for user-configurable options on mock release objects.
 type MockReleaseOptions struct {
-	Name        string
-	Version     int32
-	Chart       *chart.Chart
-	Config      *chart.Config
-	StatusCode  release.Status_Code
-	Namespace   string
-	Description string
+	Name            string
+	Version         int32
+	Chart           *chart.Chart
+	Config          *chart.Config
+	StatusCode      release.Status_Code
+	Namespace       string
+	Description     string
+	Hooks           []*release.Hook
+	OmitDefaultHook bool
 }
 
 // ReleaseMock creates a mock release object based on options set by
@@ -363,6 +450,20 @@ func ReleaseMock(opts *MockReleaseOptions) *release.Release {
 		}
 	}
 
+	hooks := opts.Hooks
+	if len(hooks) == 0 && !opts.OmitDefaultHook {
+		hooks = []*release.Hook{
+			{
+				Name:     "pre-install-hook",
+				Kind:     "Job",
+				Path:     "pre-install-hook.yaml",
+				Manifest: MockHookTemplate,
+				LastRun:  &date,
+				Events:   []release.Hook_Event{release.Hook_PRE_INSTALL},
+			},
+		}
+	}
+
 	config := opts.Config
 	if config == nil {
 		config = &chart.Config{Raw: `name: "value"`}
@@ -385,22 +486,15 @@ func ReleaseMock(opts *MockReleaseOptions) *release.Release {
 		Config:    config,
 		Version:   version,
 		Namespace: namespace,
-		Hooks: []*release.Hook{
-			{
-				Name:     "pre-install-hook",
-				Kind:     "Job",
-				Path:     "pre-install-hook.yaml",
-				Manifest: MockHookTemplate,
-				LastRun:  &date,
-				Events:   []release.Hook_Event{release.Hook_PRE_INSTALL},
-			},
-		},
-		Manifest: MockManifest,
+		Hooks:     hooks,
+		Manifest:  MockManifest,
 	}
 }
 
 // RenderReleaseMock will take a release (usually produced by helm.ReleaseMock)
 // and will render the Manifest inside using the local mechanism (no tiller).
+// This will also overwrite any hooks in the release with the ones loaded from
+// the chart.
 // (Compare to renderResources in pkg/tiller)
 func RenderReleaseMock(r *release.Release, asUpgrade bool) error {
 	if r == nil || r.Chart == nil || r.Chart.Metadata == nil {
@@ -422,15 +516,13 @@ func RenderReleaseMock(r *release.Release, asUpgrade bool) error {
 		return err
 	}
 
-	b := bytes.NewBuffer(nil)
-	for _, m := range manifest.SplitManifests(rendered) {
-		// Remove empty manifests
-		if len(strings.TrimSpace(m.Content)) == 0 {
-			continue
-		}
-		b.WriteString("\n---\n# Source: " + m.Name + "\n")
-		b.WriteString(m.Content)
+	hooks, manifests, _, err := manifest.Partition(rendered, chartutil.DefaultVersionSet, manifest.InstallOrder)
+	if err != nil {
+		return err
 	}
+
+	b := manifest.FlattenManifests(manifests)
+	r.Hooks = hooks
 	r.Manifest = b.String()
 	return nil
 }
