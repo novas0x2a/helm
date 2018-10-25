@@ -23,37 +23,66 @@ import (
 	"github.com/spf13/cobra"
 
 	"k8s.io/helm/pkg/helm"
+	"k8s.io/helm/pkg/proto/hapi/chart"
+	rpb "k8s.io/helm/pkg/proto/hapi/release"
 )
 
 func TestRollbackCmd(t *testing.T) {
+	mk := func(name string, vers int32, code rpb.Status_Code, appVersion string) *rpb.Release {
+		ch := &chart.Chart{
+			Metadata: &chart.Metadata{
+				Name:       name,
+				Version:    "0.1.0-beta.1",
+				AppVersion: appVersion,
+			},
+		}
+
+		return helm.ReleaseMock(&helm.MockReleaseOptions{
+			Name:       name,
+			Chart:      ch,
+			Version:    vers,
+			StatusCode: code,
+		})
+	}
+
+	mkRels := func() []*rpb.Release {
+		return []*rpb.Release{
+			mk("funny-honey", 1, rpb.Status_DEPLOYED, "1.1"),
+		}
+	}
 
 	tests := []releaseCase{
 		{
 			name:     "rollback a release",
 			args:     []string{"funny-honey", "1"},
+			rels:     mkRels(),
 			expected: "Rollback was a success.",
 		},
 		{
 			name:     "rollback a release with timeout",
 			args:     []string{"funny-honey", "1"},
 			flags:    []string{"--timeout", "120"},
+			rels:     mkRels(),
 			expected: "Rollback was a success.",
 		},
 		{
 			name:     "rollback a release with wait",
 			args:     []string{"funny-honey", "1"},
 			flags:    []string{"--wait"},
+			rels:     mkRels(),
 			expected: "Rollback was a success.",
 		},
 		{
 			name:     "rollback a release with description",
 			args:     []string{"funny-honey", "1"},
 			flags:    []string{"--description", "foo"},
+			rels:     mkRels(),
 			expected: "Rollback was a success.",
 		},
 		{
 			name: "rollback a release without revision",
 			args: []string{"funny-honey"},
+			rels: mkRels(),
 			err:  true,
 		},
 	}
