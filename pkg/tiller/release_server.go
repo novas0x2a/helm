@@ -20,7 +20,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"path"
 	"regexp"
 	"strings"
 
@@ -48,12 +47,6 @@ import (
 // charts to add data. Effectively, that gives us 53 chars.
 // See https://github.com/kubernetes/helm/issues/1528
 const releaseNameMaxLen = 53
-
-// NOTESFILE_SUFFIX that we want to treat special. It goes through the templating engine
-// but it's not a yaml file (resource) hence can't have hooks, etc. And the user actually
-// wants to see this file after rendering in the status command. However, it must be a suffix
-// since there can be filepath in front of it.
-const notesFileSuffix = "NOTES.txt"
 
 var (
 	// errMissingChart indicates that a chart was not provided.
@@ -291,27 +284,10 @@ func (s *ReleaseServer) renderResources(ch *chart.Chart, values chartutil.Values
 		return nil, nil, "", err
 	}
 
-	// NOTES.txt gets rendered like all the other files, but because it's not a hook nor a resource,
-	// pull it out of here into a separate file so that we can actually use the output of the rendered
-	// text file. We have to spin through this map because the file contains path information, so we
-	// look for terminating NOTES.txt. We also remove it from the files so that we don't have to skip
-	// it in the sortHooks.
-	notes := ""
-	for k, v := range files {
-		if strings.HasSuffix(k, notesFileSuffix) {
-			// Only apply the notes if it belongs to the parent chart
-			// Note: Do not use filePath.Join since it creates a path with \ which is not expected
-			if k == path.Join(ch.Metadata.Name, "templates", notesFileSuffix) {
-				notes = v
-			}
-			delete(files, k)
-		}
-	}
-
 	// Sort hooks, manifests, and partials. Only hooks and manifests are returned,
 	// as partials are not used after renderer.Render. Empty manifests are also
 	// removed here.
-	hooks, manifests, err := manifest.Partition(files, vs, manifest.InstallOrder)
+	hooks, manifests, notes, err := manifest.Partition(files, vs, manifest.InstallOrder)
 	if err != nil {
 		// By catching parse errors here, we can prevent bogus releases from going
 		// to Kubernetes.
