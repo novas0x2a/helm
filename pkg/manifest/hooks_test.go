@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package tiller
+package manifest
 
 import (
 	"bytes"
@@ -142,7 +142,7 @@ metadata:
 		manifests[o.path] = o.manifest
 	}
 
-	hs, generic, err := sortManifests(manifests, chartutil.NewVersionSet("v1", "v1beta1"), InstallOrder)
+	hs, generic, _, err := Partition(manifests, chartutil.NewVersionSet("v1", "v1beta1"), InstallOrder)
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
@@ -304,7 +304,7 @@ func TestSortManifestsHookDeletion(t *testing.T) {
 				"exampleManifest": buf.String(),
 			}
 
-			hs, _, err := sortManifests(manifests, chartutil.NewVersionSet("v1", "v1beta1"), InstallOrder)
+			hs, _, _, err := Partition(manifests, chartutil.NewVersionSet("v1", "v1beta1"), InstallOrder)
 			if err != nil {
 				t.Error(err)
 			}
