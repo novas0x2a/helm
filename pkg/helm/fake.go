@@ -22,6 +22,7 @@ import (
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"golang.org/x/net/context"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/chart"
@@ -82,6 +83,16 @@ func (c *FakeClient) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesR
 // InstallRelease creates a new release and returns a InstallReleaseResponse containing that release
 func (c *FakeClient) InstallRelease(chStr, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
 	chart := &chart.Chart{}
+	return c.InstallReleaseFromChart(chart, ns, opts...)
+}
+
+// InstallRelease creates a new release and returns a InstallReleaseResponse containing that release and accepts a context
+func (c *FakeClient) InstallReleaseWithContext(ctx context.Context, chStr, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
+	return c.InstallRelease(chStr, ns, opts...)
+}
+
+// InstallReleaseFromChart adds a new MockRelease to the fake client and returns a InstallReleaseResponse containing that release and accepts a context
+func (c *FakeClient) InstallReleaseFromChartWithContext(ctx context.Context, chart *chart.Chart, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
 	return c.InstallReleaseFromChart(chart, ns, opts...)
 }
 
@@ -151,6 +162,16 @@ func (c *FakeClient) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse,
 // UpdateRelease returns an UpdateReleaseResponse containing the updated release, if it exists
 func (c *FakeClient) UpdateRelease(rlsName string, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error) {
 	return c.UpdateReleaseFromChart(rlsName, &chart.Chart{}, opts...)
+}
+
+// UpdateRelease returns an UpdateReleaseResponse containing the updated release, if it exists and accepts a context
+func (c *FakeClient) UpdateReleaseWithContext(ctx context.Context, rlsName string, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error) {
+	return c.UpdateRelease(rlsName, chStr, opts...)
+}
+
+// UpdateReleaseFromChart returns an UpdateReleaseResponse containing the updated release, if it exists and accepts a context
+func (c *FakeClient) UpdateReleaseFromChartWithContext(ctx context.Context, rlsName string, newChart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error) {
+	return c.UpdateReleaseFromChart(rlsName, newChart, opts...)
 }
 
 // UpdateReleaseFromChart returns an UpdateReleaseResponse containing the updated release, if it exists
