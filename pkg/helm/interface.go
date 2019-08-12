@@ -31,6 +31,7 @@ type Interface interface {
 	InstallReleaseFromChartWithContext(ctx context.Context, chart *chart.Chart, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
 	DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error)
 	ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error)
+	ReleaseStatusWithContext(ctx context.Context, rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error)
 	UpdateRelease(rlsName, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	UpdateReleaseWithContext(ctx context.Context, rlsName, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	UpdateReleaseFromChart(rlsName string, chart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)

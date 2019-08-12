@@ -279,15 +279,15 @@ func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.R
 	return h.rollback(ctx, req)
 }
 
-// ReleaseStatus returns the given release's status.
-func (h *Client) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
+// ReleaseStatusWithContext returns the given release's status.
+func (h *Client) ReleaseStatusWithContext(ctx context.Context, rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
 	}
 	req := &reqOpts.statusReq
 	req.Name = rlsName
-	ctx := NewContext(context.Background())
+	ctx = NewContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -295,6 +295,11 @@ func (h *Client) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetRe
 		}
 	}
 	return h.status(ctx, req)
+}
+
+// ReleaseStatus returns the given release's status.
+func (h *Client) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
+	return h.ReleaseStatusWithContext(context.Background(), rlsName, opts...)
 }
 
 // ReleaseContentWithContext returns the configuration for a given release.

@@ -239,6 +239,11 @@ func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.G
 	return nil, storageerrors.ErrReleaseNotFound(rlsName)
 }
 
+// ReleaseStatusWithContext returns a release status response with info from the matching release name.
+func (c *FakeClient) ReleaseStatusWithContext(ctx context.Context, rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
+	return c.ReleaseStatus(rlsName, opts...)
+}
+
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
 func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
 	for _, rel := range c.Rels {
