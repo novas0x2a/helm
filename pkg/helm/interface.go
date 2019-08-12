@@ -37,8 +37,11 @@ type Interface interface {
 	UpdateReleaseFromChartWithContext(ctx context.Context, rlsName string, chart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error)
 	ReleaseContent(rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
+	ReleaseContentWithContext(ctx context.Context, rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
 	ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error)
 	GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error)
+	GetVersionWithContext(ctx context.Context, opts ...VersionOption) (*rls.GetVersionResponse, error)
 	RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error)
+	RunReleaseTestWithContext(ctx context.Context, rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error)
 	PingTiller() error
 }
