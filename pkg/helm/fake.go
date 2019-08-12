@@ -80,6 +80,11 @@ func (c *FakeClient) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesR
 	return resp, nil
 }
 
+// ListReleasesWithContext lists the current releases
+func (c *FakeClient) ListReleasesWithContext(ctx context.Context, opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
+	return c.ListReleases(opts...)
+}
+
 // InstallRelease creates a new release and returns a InstallReleaseResponse containing that release
 func (c *FakeClient) InstallRelease(chStr, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
 	chart := &chart.Chart{}
@@ -148,6 +153,11 @@ func (c *FakeClient) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.U
 	}
 
 	return nil, storageerrors.ErrReleaseNotFound(rlsName)
+}
+
+// DeleteReleaseWithContext deletes a release from the FakeClient
+func (c *FakeClient) DeleteReleaseWithContext(ctx context.Context, rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
+	return c.DeleteRelease(rlsName, opts...)
 }
 
 // GetVersion returns a fake version
@@ -223,6 +233,11 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 // RollbackRelease returns nil, nil
 func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
 	return nil, nil
+}
+
+// RollbackReleaseWithContext returns nil, nil
+func (c *FakeClient) RollbackReleaseWithContext(ctx context.Context, rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+	return c.RollbackRelease(rlsName, opts...)
 }
 
 // ReleaseStatus returns a release status response with info from the matching release name.

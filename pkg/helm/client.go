@@ -57,14 +57,14 @@ func (h *Client) Option(opts ...Option) *Client {
 	return h
 }
 
-// ListReleases lists the current releases.
-func (h *Client) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
+// ListReleasesWithContext lists the current releases.
+func (h *Client) ListReleasesWithContext(ctx context.Context, opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
 	}
 	req := &reqOpts.listReq
-	ctx := NewContext(context.Background())
+	ctx = NewContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -72,6 +72,11 @@ func (h *Client) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesRespo
 		}
 	}
 	return h.list(ctx, req)
+}
+
+// ListReleases lists the current releases.
+func (h *Client) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
+	return h.ListReleasesWithContext(context.Background(), opts...)
 }
 
 // InstallRelease loads a chart from chstr, installs it, and returns the release response.
@@ -139,8 +144,8 @@ func (h *Client) installReleaseFromChartWithContext(ctx context.Context, chart *
 	return h.install(ctx, req)
 }
 
-// DeleteRelease uninstalls a named release and returns the response.
-func (h *Client) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
+// DeleteReleaseWithContext uninstalls a named release and returns the response.
+func (h *Client) DeleteReleaseWithContext(ctx context.Context, rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
 	// apply the uninstall options
 	reqOpts := h.opts
 	for _, opt := range opts {
@@ -159,7 +164,7 @@ func (h *Client) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.Unins
 	req := &reqOpts.uninstallReq
 	req.Name = rlsName
 	req.DisableHooks = reqOpts.disableHooks
-	ctx := NewContext(context.Background())
+	ctx = NewContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -167,6 +172,11 @@ func (h *Client) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.Unins
 		}
 	}
 	return h.delete(ctx, req)
+}
+
+// DeleteRelease uninstalls a named release and returns the response.
+func (h *Client) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
+	return h.DeleteReleaseWithContext(context.Background(), rlsName, opts...)
 }
 
 // UpdateRelease loads a chart from chstr and updates a release to a new/different chart.
@@ -257,8 +267,8 @@ func (h *Client) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, err
 	return h.GetVersionWithContext(context.Background(), opts...)
 }
 
-// RollbackRelease rolls back a release to the previous version.
-func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+// RollbackReleaseWithContext rolls back a release to the previous version.
+func (h *Client) RollbackReleaseWithContext(ctx context.Context, rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
@@ -269,7 +279,7 @@ func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.R
 	req.DisableHooks = reqOpts.disableHooks
 	req.DryRun = reqOpts.dryRun
 	req.Name = rlsName
-	ctx := NewContext(context.Background())
+	ctx = NewContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -277,6 +287,11 @@ func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.R
 		}
 	}
 	return h.rollback(ctx, req)
+}
+
+// RollbackRelease rolls back a release to the previous version.
+func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+	return h.RollbackReleaseWithContext(context.Background(), rlsName, opts...)
 }
 
 // ReleaseStatusWithContext returns the given release's status.
