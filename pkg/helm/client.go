@@ -340,8 +340,8 @@ func (h *Client) ReleaseContent(rlsName string, opts ...ContentOption) (*rls.Get
 	return h.ReleaseContentWithContext(context.Background(), rlsName, opts...)
 }
 
-// ReleaseHistory returns a release's revision history.
-func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
+// ReleaseHistoryWithContext returns a release's revision history.
+func (h *Client) ReleaseHistoryWithContext(ctx context.Context, rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
@@ -349,7 +349,7 @@ func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.Get
 
 	req := &reqOpts.histReq
 	req.Name = rlsName
-	ctx := NewContext(context.Background())
+	ctx = NewContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -357,6 +357,11 @@ func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.Get
 		}
 	}
 	return h.history(ctx, req)
+}
+
+// ReleaseHistory returns a release's revision history.
+func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
+	return h.ReleaseHistoryWithContext(context.Background(), rlsName, opts...)
 }
 
 // RunReleaseTestWithContxt executes a pre-defined test on a release.

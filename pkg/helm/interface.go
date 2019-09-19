@@ -43,6 +43,7 @@ type Interface interface {
 	ReleaseContent(rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
 	ReleaseContentWithContext(ctx context.Context, rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
 	ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error)
+	ReleaseHistoryWithContext(ctx context.Context, rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error)
 	GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error)
 	GetVersionWithContext(ctx context.Context, opts ...VersionOption) (*rls.GetVersionResponse, error)
 	RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error)

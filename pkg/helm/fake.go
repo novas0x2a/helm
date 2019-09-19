@@ -281,6 +281,11 @@ func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls
 	return &rls.GetHistoryResponse{Releases: c.Rels}, nil
 }
 
+// ReleaseHistoryWithContext returns a release's revision history.
+func (c *FakeClient) ReleaseHistoryWithContext(ctx context.Context, rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
+	return c.ReleaseHistory(rlsName, opts...)
+}
+
 // RunReleaseTest executes a pre-defined tests on a release
 func (c *FakeClient) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error) {
 
