@@ -22,6 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	appsv1beta1 "k8s.io/api/apps/v1beta1"
 	appsv1beta2 "k8s.io/api/apps/v1beta2"
+	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -49,6 +50,7 @@ func (c *Client) waitForResources(timeout time.Duration, created Result) error {
 	}
 	return wait.Poll(2*time.Second, timeout, func() (bool, error) {
 		pods := []v1.Pod{}
+		jobs := []batchv1.Job{}
 		services := []v1.Service{}
 		pvc := []v1.PersistentVolumeClaim{}
 		deployments := []deployment{}
@@ -192,9 +194,21 @@ func (c *Client) waitForResources(timeout time.Duration, created Result) error {
 					return false, err
 				}
 				services = append(services, *svc)
+			case *batchv1.Job:
+				job, err := kcs.BatchV1().Jobs(value.Namespace).Get(value.Name, metav1.GetOptions{})
+				if err != nil {
+					return false, err
+				}
+				jobs = append(jobs, *job)
+
 			}
 		}
-		isReady := c.podsReady(pods) && c.servicesReady(services) && c.volumesReady(pvc) && c.deploymentsReady(deployments)
+		isReady, err := c.jobsReady(jobs)
+		if err != nil {
+			return false, err
+		}
+
+		isReady = isReady && c.podsReady(pods) && c.servicesReady(services) && c.volumesReady(pvc) && c.deploymentsReady(deployments)
 		return isReady, nil
 	})
 }
@@ -207,6 +221,19 @@ func (c *Client) podsReady(pods []v1.Pod) bool {
 		}
 	}
 	return true
+}
+
+func (c *Client) jobsReady(jobs []batchv1.Job) (bool, error) {
+	for _, job := range jobs {
+		if ready, err := c.jobIsReady(&job, ""); err != nil {
+			c.Log("Job is in error: %s/%s: %v", job.GetNamespace(), job.GetName(), err)
+			return true, err
+		} else if !ready {
+			c.Log("Job is not ready: %s/%s", job.GetNamespace(), job.GetName())
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (c *Client) servicesReady(svc []v1.Service) bool {

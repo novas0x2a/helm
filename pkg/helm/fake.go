@@ -18,6 +18,7 @@ package helm // import "k8s.io/helm/pkg/helm"
 
 import (
 	"errors"
+	"fmt"
 	"math/rand"
 	"sync"
 
@@ -195,7 +196,7 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 		opt(&c.Opts)
 	}
 	// Check to see if the release already exists.
-	rel, err := c.ReleaseContent(rlsName, nil)
+	rel, err := c.ReleaseContent(rlsName)
 	if err != nil {
 		return nil, err
 	}
@@ -230,9 +231,61 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 	return &rls.UpdateReleaseResponse{Release: newRelease}, nil
 }
 
-// RollbackRelease returns nil, nil
+// RollbackRelease will roll a release back
 func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
-	return nil, nil
+	for _, opt := range opts {
+		opt(&c.Opts)
+	}
+
+	// Check to see if the release already exists.
+	//rel, err := c.ReleaseHistory(rlsName, ContentReleaseVersion(c.Opts.rollbackReq.Version))
+	rel, err := c.ReleaseHistory(rlsName)
+	if err != nil {
+		return nil, err
+	}
+
+	tgtv := int32(len(rel.Releases) - 1)
+	if c.Opts.rollbackReq.Version != 0 {
+		tgtv = c.Opts.rollbackReq.Version
+	}
+
+	var tgt *release.Release
+	for _, r := range rel.Releases {
+		if r.Version == tgtv {
+			tgt = r
+		}
+	}
+
+	if tgt == nil {
+		return nil, storageerrors.ErrReleaseNotFound(fmt.Sprintf("%s.v%d", rlsName, tgtv))
+	}
+
+	cur := rel.Releases[len(rel.Releases)-1]
+
+	newRelease := &release.Release{
+		Name:      rlsName,
+		Namespace: tgt.Namespace,
+		Chart:     tgt.Chart,
+		Config:    tgt.Config,
+		Info: &release.Info{
+			FirstDeployed: cur.Info.FirstDeployed,
+			LastDeployed:  &timestamp.Timestamp{Seconds: 242085845, Nanos: 0},
+			Status: &release.Status{
+				Code:  release.Status_DEPLOYED,
+				Notes: tgt.Info.Status.Notes,
+			},
+			Description: c.Opts.rollbackReq.Description,
+		},
+		Version:  cur.Version + 1,
+		Manifest: tgt.Manifest,
+		Hooks:    tgt.Hooks,
+	}
+
+	if !c.Opts.dryRun {
+		c.Rels = append(c.Rels, newRelease)
+	}
+
+	return &rls.RollbackReleaseResponse{Release: newRelease}, nil
 }
 
 // RollbackReleaseWithContext returns nil, nil
@@ -262,15 +315,24 @@ func (c *FakeClient) ReleaseStatusWithContext(ctx context.Context, rlsName strin
 
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
 func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
+	for _, opt := range opts {
+		opt(&c.Opts)
+	}
+
 	for i := len(c.Rels) - 1; i >= 0; i-- {
 		rel := c.Rels[i]
-		if rel.Name == rlsName {
+		if rel.Name == rlsName && (c.Opts.contentReq.Version == 0 || c.Opts.contentReq.Version == rel.Version) {
 			return &rls.GetReleaseContentResponse{
 				Release: rel,
 			}, nil
 		}
 	}
-	return resp, storageerrors.ErrReleaseNotFound(rlsName)
+
+	n := rlsName
+	if c.Opts.contentReq.Version != 0 {
+		n = fmt.Sprintf("%s.v%d", rlsName, c.Opts.contentReq.Version)
+	}
+	return resp, storageerrors.ErrReleaseNotFound(n)
 }
 
 // ReleaseContentWithContext returns the configuration for the matching release name in the fake release client.
@@ -280,7 +342,33 @@ func (c *FakeClient) ReleaseContentWithContext(ctx context.Context, rlsName stri
 
 // ReleaseHistory returns a release's revision history.
 func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
-	return &rls.GetHistoryResponse{Releases: c.Rels}, nil
+	for _, opt := range opts {
+		opt(&c.Opts)
+	}
+
+	var ret []*release.Release
+	for _, r := range c.Rels {
+		if r.Name == rlsName {
+			ret = append(ret, r)
+		}
+	}
+
+	m := int(c.Opts.histReq.Max)
+
+	switch {
+	case m == 0:
+		// nothing
+	case m < 0:
+		return nil, errors.New("release history max < 0")
+	case m >= len(ret):
+		// also fine
+	default:
+		ret = ret[len(ret)-m:]
+	}
+	if len(ret) == 0 {
+		return nil, storageerrors.ErrReleaseNotFound(rlsName)
+	}
+	return &rls.GetHistoryResponse{Releases: ret}, nil
 }
 
 // ReleaseHistoryWithContext returns a release's revision history.

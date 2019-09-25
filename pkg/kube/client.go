@@ -804,6 +804,13 @@ func (c *Client) waitForJob(e watch.Event, name string) (bool, error) {
 	if err != nil {
 		return true, err
 	}
+	return c.jobIsReady(job, name)
+}
+
+func (c *Client) jobIsReady(job *batch.Job, name string) (bool, error) {
+	if name == "" {
+		name = job.GetName()
+	}
 
 	for _, c := range job.Status.Conditions {
 		if c.Type == batch.JobComplete && c.Status == v1.ConditionTrue {
@@ -812,7 +819,6 @@ func (c *Client) waitForJob(e watch.Event, name string) (bool, error) {
 			return true, fmt.Errorf("Job failed: %s", c.Reason)
 		}
 	}
-
 	c.Log("%s: Jobs active: %d, jobs failed: %d, jobs succeeded: %d", name, job.Status.Active, job.Status.Failed, job.Status.Succeeded)
 	return false, nil
 }
