@@ -224,7 +224,7 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 	}
 
 	if !c.Opts.dryRun {
-		*rel.Release = *newRelease
+		c.Rels = append(c.Rels, newRelease)
 	}
 
 	return &rls.UpdateReleaseResponse{Release: newRelease}, nil
@@ -242,7 +242,8 @@ func (c *FakeClient) RollbackReleaseWithContext(ctx context.Context, rlsName str
 
 // ReleaseStatus returns a release status response with info from the matching release name.
 func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
-	for _, rel := range c.Rels {
+	for i := len(c.Rels) - 1; i >= 0; i-- {
+		rel := c.Rels[i]
 		if rel.Name == rlsName {
 			return &rls.GetReleaseStatusResponse{
 				Name:      rel.Name,
@@ -261,7 +262,8 @@ func (c *FakeClient) ReleaseStatusWithContext(ctx context.Context, rlsName strin
 
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
 func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
-	for _, rel := range c.Rels {
+	for i := len(c.Rels) - 1; i >= 0; i-- {
+		rel := c.Rels[i]
 		if rel.Name == rlsName {
 			return &rls.GetReleaseContentResponse{
 				Release: rel,
