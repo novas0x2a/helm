@@ -144,16 +144,26 @@ func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts
 
 // DeleteRelease deletes a release from the FakeClient
 func (c *FakeClient) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
-	for i, rel := range c.Rels {
+	var ret *release.Release
+	rels := make([]*release.Release, 0)
+	for _, rel := range c.Rels {
 		if rel.Name == rlsName {
-			c.Rels = append(c.Rels[:i], c.Rels[i+1:]...)
-			return &rls.UninstallReleaseResponse{
-				Release: rel,
-			}, nil
+			ret = rel
+		} else {
+			rels = append(rels, rel)
 		}
 	}
 
-	return nil, storageerrors.ErrReleaseNotFound(rlsName)
+	if ret == nil {
+		return nil, storageerrors.ErrReleaseNotFound(rlsName)
+	}
+
+	c.Rels = rels
+
+	return &rls.UninstallReleaseResponse{
+		Release: ret,
+	}, nil
+
 }
 
 // DeleteReleaseWithContext deletes a release from the FakeClient
