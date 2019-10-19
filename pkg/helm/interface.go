@@ -25,20 +25,28 @@ import (
 // Interface for helm client for mocking in tests
 type Interface interface {
 	ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesResponse, error)
+	ListReleasesWithContext(ctx context.Context, opts ...ReleaseListOption) (*rls.ListReleasesResponse, error)
 	InstallRelease(chStr, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
 	InstallReleaseWithContext(ctx context.Context, chStr, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
 	InstallReleaseFromChart(chart *chart.Chart, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
 	InstallReleaseFromChartWithContext(ctx context.Context, chart *chart.Chart, namespace string, opts ...InstallOption) (*rls.InstallReleaseResponse, error)
 	DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error)
+	DeleteReleaseWithContext(ctx context.Context, rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error)
 	ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error)
+	ReleaseStatusWithContext(ctx context.Context, rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error)
 	UpdateRelease(rlsName, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	UpdateReleaseWithContext(ctx context.Context, rlsName, chStr string, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	UpdateReleaseFromChart(rlsName string, chart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	UpdateReleaseFromChartWithContext(ctx context.Context, rlsName string, chart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error)
 	RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error)
+	RollbackReleaseWithContext(ctx context.Context, rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error)
 	ReleaseContent(rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
+	ReleaseContentWithContext(ctx context.Context, rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error)
 	ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error)
+	ReleaseHistoryWithContext(ctx context.Context, rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error)
 	GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error)
+	GetVersionWithContext(ctx context.Context, opts ...VersionOption) (*rls.GetVersionResponse, error)
 	RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error)
+	RunReleaseTestWithContext(ctx context.Context, rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error)
 	PingTiller() error
 }
