@@ -59,12 +59,17 @@ func (h *Client) Option(opts ...Option) *Client {
 
 // ListReleases lists the current releases.
 func (h *Client) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
+	return h.ListReleasesWithContext(NewContext(), opts...)
+}
+
+// ListReleasesWithContext lists the current releases.
+func (h *Client) ListReleasesWithContext(ctx context.Context, opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
 	}
 	req := &reqOpts.listReq
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -141,6 +146,11 @@ func (h *Client) installReleaseFromChartWithContext(ctx context.Context, chart *
 
 // DeleteRelease uninstalls a named release and returns the response.
 func (h *Client) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
+	return h.DeleteReleaseWithContext(NewContext(), rlsName, opts...)
+}
+
+// DeleteReleaseWithContext uninstalls a named release and returns the response.
+func (h *Client) DeleteReleaseWithContext(ctx context.Context, rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
 	// apply the uninstall options
 	reqOpts := h.opts
 	for _, opt := range opts {
@@ -159,7 +169,7 @@ func (h *Client) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.Unins
 	req := &reqOpts.uninstallReq
 	req.Name = rlsName
 	req.DisableHooks = reqOpts.disableHooks
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -238,12 +248,17 @@ func (h *Client) updateReleaseFromChartWithContext(ctx context.Context, rlsName 
 
 // GetVersion returns the server version.
 func (h *Client) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error) {
+	return h.GetVersionWithContext(NewContext(), opts...)
+}
+
+// GetVersionWithContext returns the server version.
+func (h *Client) GetVersionWithContext(ctx context.Context, opts ...VersionOption) (*rls.GetVersionResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
 	}
 	req := &rls.GetVersionRequest{}
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -255,6 +270,11 @@ func (h *Client) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, err
 
 // RollbackRelease rolls back a release to the previous version.
 func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+	return h.RollbackReleaseWithContext(NewContext(), rlsName, opts...)
+}
+
+// RollbackReleaseWithContext rolls back a release to the previous version.
+func (h *Client) RollbackReleaseWithContext(ctx context.Context, rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
@@ -265,7 +285,7 @@ func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.R
 	req.DisableHooks = reqOpts.disableHooks
 	req.DryRun = reqOpts.dryRun
 	req.Name = rlsName
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -277,13 +297,18 @@ func (h *Client) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.R
 
 // ReleaseStatus returns the given release's status.
 func (h *Client) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
+	return h.ReleaseStatusWithContext(NewContext(), rlsName, opts...)
+}
+
+// ReleaseStatusWithContext returns the given release's status.
+func (h *Client) ReleaseStatusWithContext(ctx context.Context, rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
 	}
 	req := &reqOpts.statusReq
 	req.Name = rlsName
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -295,13 +320,18 @@ func (h *Client) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetRe
 
 // ReleaseContent returns the configuration for a given release.
 func (h *Client) ReleaseContent(rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error) {
+	return h.ReleaseContentWithContext(NewContext(), rlsName, opts...)
+}
+
+// ReleaseContentWithContext returns the configuration for a given release.
+func (h *Client) ReleaseContentWithContext(ctx context.Context, rlsName string, opts ...ContentOption) (*rls.GetReleaseContentResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
 	}
 	req := &reqOpts.contentReq
 	req.Name = rlsName
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -313,6 +343,11 @@ func (h *Client) ReleaseContent(rlsName string, opts ...ContentOption) (*rls.Get
 
 // ReleaseHistory returns a release's revision history.
 func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
+	return h.ReleaseHistoryWithContext(NewContext(), rlsName, opts...)
+}
+
+// ReleaseHistoryWithContext returns a release's revision history.
+func (h *Client) ReleaseHistoryWithContext(ctx context.Context, rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
@@ -320,7 +355,7 @@ func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.Get
 
 	req := &reqOpts.histReq
 	req.Name = rlsName
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	if reqOpts.before != nil {
 		if err := reqOpts.before(ctx, req); err != nil {
@@ -332,6 +367,11 @@ func (h *Client) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.Get
 
 // RunReleaseTest executes a pre-defined test on a release.
 func (h *Client) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error) {
+	return h.RunReleaseTestWithContext(NewContext(), rlsName, opts...)
+}
+
+// RunReleaseTestWithContxt executes a pre-defined test on a release.
+func (h *Client) RunReleaseTestWithContext(ctx context.Context, rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error) {
 	reqOpts := h.opts
 	for _, opt := range opts {
 		opt(&reqOpts)
@@ -339,15 +379,14 @@ func (h *Client) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-ch
 
 	req := &reqOpts.testReq
 	req.Name = rlsName
-	ctx := NewContext()
+	ctx = FromContext(ctx)
 
 	return h.test(ctx, req)
 }
 
 // PingTiller pings the Tiller pod and ensures that it is up and running
 func (h *Client) PingTiller() error {
-	ctx := NewContext()
-	return h.ping(ctx)
+	return h.ping(NewContext())
 }
 
 // connect returns a gRPC connection to Tiller or error. The gRPC dial options
