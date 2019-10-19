@@ -82,6 +82,11 @@ func (c *FakeClient) ListReleases(opts ...ReleaseListOption) (*rls.ListReleasesR
 	return resp, nil
 }
 
+// ListReleasesWithContext lists the current releases
+func (c *FakeClient) ListReleasesWithContext(ctx context.Context, opts ...ReleaseListOption) (*rls.ListReleasesResponse, error) {
+	return c.ListReleases(opts...)
+}
+
 // InstallRelease creates a new release and returns a InstallReleaseResponse containing that release
 func (c *FakeClient) InstallRelease(chStr, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
 	chart := &chart.Chart{}
@@ -162,6 +167,11 @@ func (c *FakeClient) DeleteRelease(rlsName string, opts ...DeleteOption) (*rls.U
 
 }
 
+// DeleteReleaseWithContext deletes a release from the FakeClient
+func (c *FakeClient) DeleteReleaseWithContext(ctx context.Context, rlsName string, opts ...DeleteOption) (*rls.UninstallReleaseResponse, error) {
+	return c.DeleteRelease(rlsName, opts...)
+}
+
 // GetVersion returns a fake version
 func (c *FakeClient) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse, error) {
 	return &rls.GetVersionResponse{
@@ -169,6 +179,11 @@ func (c *FakeClient) GetVersion(opts ...VersionOption) (*rls.GetVersionResponse,
 			SemVer: "1.2.3-fakeclient+testonly",
 		},
 	}, nil
+}
+
+// GetVersionWithContext returns a fake version
+func (c *FakeClient) GetVersionWithContext(ctx context.Context, opts ...VersionOption) (*rls.GetVersionResponse, error) {
+	return c.GetVersion(opts...)
 }
 
 // UpdateRelease returns an UpdateReleaseResponse containing the updated release, if it exists
@@ -285,6 +300,11 @@ func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*r
 	return &rls.RollbackReleaseResponse{Release: newRelease}, nil
 }
 
+// RollbackReleaseWithContext returns nil, nil
+func (c *FakeClient) RollbackReleaseWithContext(ctx context.Context, rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+	return c.RollbackRelease(rlsName, opts...)
+}
+
 // ReleaseStatus returns a release status response with info from the matching release name.
 func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
 	for i := len(c.Rels) - 1; i >= 0; i-- {
@@ -298,6 +318,11 @@ func (c *FakeClient) ReleaseStatus(rlsName string, opts ...StatusOption) (*rls.G
 		}
 	}
 	return nil, storageerrors.ErrReleaseNotFound(rlsName)
+}
+
+// ReleaseStatusWithContext returns a release status response with info from the matching release name.
+func (c *FakeClient) ReleaseStatusWithContext(ctx context.Context, rlsName string, opts ...StatusOption) (*rls.GetReleaseStatusResponse, error) {
+	return c.ReleaseStatus(rlsName, opts...)
 }
 
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
@@ -320,6 +345,11 @@ func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp
 		n = fmt.Sprintf("%s.v%d", rlsName, c.Opts.contentReq.Version)
 	}
 	return resp, storageerrors.ErrReleaseNotFound(n)
+}
+
+// ReleaseContentWithContext returns the configuration for the matching release name in the fake release client.
+func (c *FakeClient) ReleaseContentWithContext(ctx context.Context, rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
+	return c.ReleaseContent(rlsName, opts...)
 }
 
 // ReleaseHistory returns a release's revision history.
@@ -354,6 +384,11 @@ func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls
 	return &rls.GetHistoryResponse{Releases: ret}, nil
 }
 
+// ReleaseHistoryWithContext returns a release's revision history.
+func (c *FakeClient) ReleaseHistoryWithContext(ctx context.Context, rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
+	return c.ReleaseHistory(rlsName, opts...)
+}
+
 // RunReleaseTest executes a pre-defined tests on a release
 func (c *FakeClient) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error) {
 
@@ -377,6 +412,11 @@ func (c *FakeClient) RunReleaseTest(rlsName string, opts ...ReleaseTestOption) (
 	}()
 
 	return results, errc
+}
+
+// RunReleaseTestWithContext executes a pre-defined tests on a release
+func (c *FakeClient) RunReleaseTestWithContext(ctx context.Context, rlsName string, opts ...ReleaseTestOption) (<-chan *rls.TestReleaseResponse, <-chan error) {
+	return c.RunReleaseTest(rlsName, opts...)
 }
 
 // PingTiller pings the Tiller pod and ensures that it is up and running
