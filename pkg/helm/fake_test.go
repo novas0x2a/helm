@@ -402,7 +402,7 @@ func TestFakeClient_UpdateReleaseFromChart(t *testing.T) {
 				Release: releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2}),
 			},
 			relsAfter: []*release.Release{
-				releaseWithChart(&MockReleaseOptions{Name: "new-release"}),
+				releaseWithChart(&MockReleaseOptions{Name: "new-release", StatusCode: release.Status_SUPERSEDED}),
 				releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2}),
 			},
 		},
@@ -422,7 +422,7 @@ func TestFakeClient_UpdateReleaseFromChart(t *testing.T) {
 				Release: withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2, OmitDefaultHook: true}), true),
 			},
 			relsAfter: []*release.Release{
-				releaseWithChart(&MockReleaseOptions{Name: "new-release"}),
+				releaseWithChart(&MockReleaseOptions{Name: "new-release", StatusCode: release.Status_SUPERSEDED}),
 				withManifest(releaseWithChart(&MockReleaseOptions{Name: "new-release", Version: 2, OmitDefaultHook: true}), true),
 			},
 			wantErr: false,
