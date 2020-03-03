@@ -236,6 +236,13 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 	}
 
 	if !c.Opts.dryRun {
+		for i, r := range c.Rels {
+			if r.Version == rel.Release.Version && r.Name == rel.Release.Name {
+				r.Info.Status.Code = release.Status_SUPERSEDED
+				c.Rels[i] = r
+				break
+			}
+		}
 		c.Rels = append(c.Rels, newRelease)
 	}
 
@@ -292,6 +299,13 @@ func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*r
 	}
 
 	if !c.Opts.dryRun {
+		for i, r := range c.Rels {
+			if r.Version == cur.Version && r.Name == cur.Name {
+				r.Info.Status.Code = release.Status_SUPERSEDED
+				c.Rels[i] = r
+				break
+			}
+		}
 		c.Rels = append(c.Rels, newRelease)
 	}
 
