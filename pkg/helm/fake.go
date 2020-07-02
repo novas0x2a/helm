@@ -105,12 +105,13 @@ func (c *FakeClient) InstallReleaseFromChartWithContext(ctx context.Context, cha
 
 // InstallReleaseFromChart adds a new MockRelease to the fake client and returns a InstallReleaseResponse containing that release
 func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts ...InstallOption) (*rls.InstallReleaseResponse, error) {
+	reqOpts := c.Opts
 	for _, opt := range opts {
-		opt(&c.Opts)
+		opt(&reqOpts)
 	}
 
-	releaseName := c.Opts.instReq.Name
-	releaseDescription := c.Opts.instReq.Description
+	releaseName := reqOpts.instReq.Name
+	releaseDescription := reqOpts.instReq.Description
 
 	// Check to see if the release already exists.
 	rel, err := c.ReleaseStatus(releaseName, nil)
@@ -121,7 +122,7 @@ func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts
 	mockOpts := &MockReleaseOptions{
 		Name:        releaseName,
 		Chart:       chart,
-		Config:      c.Opts.instReq.Values,
+		Config:      reqOpts.instReq.Values,
 		Namespace:   ns,
 		Description: releaseDescription,
 	}
@@ -134,7 +135,7 @@ func (c *FakeClient) InstallReleaseFromChart(chart *chart.Chart, ns string, opts
 		}
 	}
 
-	if !c.Opts.dryRun {
+	if !reqOpts.dryRun {
 		c.Rels = append(c.Rels, release)
 	}
 
@@ -203,8 +204,9 @@ func (c *FakeClient) UpdateReleaseFromChartWithContext(ctx context.Context, rlsN
 
 // UpdateReleaseFromChart returns an UpdateReleaseResponse containing the updated release, if it exists
 func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Chart, opts ...UpdateOption) (*rls.UpdateReleaseResponse, error) {
+	reqOpts := c.Opts
 	for _, opt := range opts {
-		opt(&c.Opts)
+		opt(&reqOpts)
 	}
 	// Check to see if the release already exists.
 	rel, err := c.ReleaseContent(rlsName)
@@ -216,16 +218,16 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 		Name:        rel.Release.Name,
 		Version:     rel.Release.Version + 1,
 		Chart:       newChart,
-		Config:      c.Opts.updateReq.Values,
+		Config:      reqOpts.updateReq.Values,
 		Namespace:   rel.Release.Namespace,
-		Description: c.Opts.updateReq.Description,
+		Description: reqOpts.updateReq.Description,
 	}
 
 	newRelease := ReleaseMock(mockOpts)
 
-	if c.Opts.updateReq.ResetValues {
+	if reqOpts.updateReq.ResetValues {
 		newRelease.Config = &chart.Config{Raw: "{}"}
-	} else if c.Opts.updateReq.ReuseValues {
+	} else if reqOpts.updateReq.ReuseValues {
 		// TODO: This should merge old and new values but does not.
 	}
 
@@ -235,7 +237,7 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 		}
 	}
 
-	if !c.Opts.dryRun {
+	if !reqOpts.dryRun {
 		for i, r := range c.Rels {
 			if r.Version == rel.Release.Version && r.Name == rel.Release.Name {
 				r.Info.Status.Code = release.Status_SUPERSEDED
@@ -251,8 +253,9 @@ func (c *FakeClient) UpdateReleaseFromChart(rlsName string, newChart *chart.Char
 
 // RollbackRelease will roll a release back
 func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*rls.RollbackReleaseResponse, error) {
+	reqOpts := c.Opts
 	for _, opt := range opts {
-		opt(&c.Opts)
+		opt(&reqOpts)
 	}
 
 	// Check to see if the release already exists.
@@ -264,8 +267,8 @@ func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*r
 	cur := rel.Releases[0]
 	tgtv := cur.Version - 1
 
-	if c.Opts.rollbackReq.Version != 0 {
-		tgtv = c.Opts.rollbackReq.Version
+	if reqOpts.rollbackReq.Version != 0 {
+		tgtv = reqOpts.rollbackReq.Version
 	}
 
 	var tgt *release.Release
@@ -291,14 +294,14 @@ func (c *FakeClient) RollbackRelease(rlsName string, opts ...RollbackOption) (*r
 				Code:  release.Status_DEPLOYED,
 				Notes: tgt.Info.Status.Notes,
 			},
-			Description: c.Opts.rollbackReq.Description,
+			Description: reqOpts.rollbackReq.Description,
 		},
 		Version:  cur.Version + 1,
 		Manifest: tgt.Manifest,
 		Hooks:    tgt.Hooks,
 	}
 
-	if !c.Opts.dryRun {
+	if !reqOpts.dryRun {
 		for i, r := range c.Rels {
 			if r.Version == cur.Version && r.Name == cur.Name {
 				r.Info.Status.Code = release.Status_SUPERSEDED
@@ -339,13 +342,14 @@ func (c *FakeClient) ReleaseStatusWithContext(ctx context.Context, rlsName strin
 
 // ReleaseContent returns the configuration for the matching release name in the fake release client.
 func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp *rls.GetReleaseContentResponse, err error) {
+	reqOpts := c.Opts
 	for _, opt := range opts {
-		opt(&c.Opts)
+		opt(&reqOpts)
 	}
 
 	for i := len(c.Rels) - 1; i >= 0; i-- {
 		rel := c.Rels[i]
-		if rel.Name == rlsName && (c.Opts.contentReq.Version == 0 || c.Opts.contentReq.Version == rel.Version) {
+		if rel.Name == rlsName && (reqOpts.contentReq.Version == 0 || reqOpts.contentReq.Version == rel.Version) {
 			return &rls.GetReleaseContentResponse{
 				Release: rel,
 			}, nil
@@ -353,8 +357,8 @@ func (c *FakeClient) ReleaseContent(rlsName string, opts ...ContentOption) (resp
 	}
 
 	n := rlsName
-	if c.Opts.contentReq.Version != 0 {
-		n = fmt.Sprintf("%s.v%d", rlsName, c.Opts.contentReq.Version)
+	if reqOpts.contentReq.Version != 0 {
+		n = fmt.Sprintf("%s.v%d", rlsName, reqOpts.contentReq.Version)
 	}
 	return resp, storageerrors.ErrReleaseNotFound(n)
 }
@@ -366,8 +370,9 @@ func (c *FakeClient) ReleaseContentWithContext(ctx context.Context, rlsName stri
 
 // ReleaseHistory returns a release's revision history.
 func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls.GetHistoryResponse, error) {
+	reqOpts := c.Opts
 	for _, opt := range opts {
-		opt(&c.Opts)
+		opt(&reqOpts)
 	}
 
 	var ret []*release.Release
@@ -379,7 +384,7 @@ func (c *FakeClient) ReleaseHistory(rlsName string, opts ...HistoryOption) (*rls
 
 	relutil.Reverse(ret, relutil.SortByRevision)
 
-	m := int(c.Opts.histReq.Max)
+	m := int(reqOpts.histReq.Max)
 
 	switch {
 	case m == 0:
