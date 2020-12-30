@@ -60,9 +60,9 @@ import (
 	"k8s.io/client-go/rest"
 	cachetools "k8s.io/client-go/tools/cache"
 	watchtools "k8s.io/client-go/tools/watch"
+	"k8s.io/kubectl/pkg/cmd/get"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/validation"
-	"k8s.io/kubernetes/pkg/kubectl/cmd/get"
 )
 
 // MissingGetHeader is added to Get's output when a resource is not found.
@@ -107,26 +107,7 @@ type ResourceActorFunc func(*resource.Info) error
 //
 // Namespace will set the namespace.
 func (c *Client) Create(namespace string, reader io.Reader, timeout int64, shouldWait bool) error {
-	client, err := c.KubernetesClientSet()
-	if err != nil {
-		return err
-	}
-	if err := ensureNamespace(client, namespace); err != nil {
-		return err
-	}
-	c.Log("building resources from manifest")
-	infos, buildErr := c.BuildUnstructured(namespace, reader)
-	if buildErr != nil {
-		return buildErr
-	}
-	c.Log("creating %d resource(s)", len(infos))
-	if err := perform(infos, createResource); err != nil {
-		return err
-	}
-	if shouldWait {
-		return c.waitForResources(time.Duration(timeout)*time.Second, infos)
-	}
-	return nil
+	return fmt.Errorf("this tiller method is not supported")
 }
 
 func (c *Client) newBuilder(namespace string, reader io.Reader) *resource.Result {
@@ -484,130 +465,7 @@ type UpdateOptions struct {
 // Namespace will set the namespaces. UpdateOptions provides additional parameters to control
 // update behavior.
 func (c *Client) UpdateWithOptions(namespace string, originalReader, targetReader io.Reader, opts UpdateOptions) error {
-	original, err := c.BuildUnstructured(namespace, originalReader)
-	if err != nil {
-		// Checking for removed Kubernetes API error so can provide a more informative error message to the user
-		// Ref: https://github.com/helm/helm/issues/7219
-		if strings.Contains(err.Error(), KubsAPIErrorMsg) {
-			return fmt.Errorf("current release manifest contains removed kubernetes api(s) for this "+
-				"kubernetes version and it is therefore unable to build the kubernetes "+
-				"objects for performing the diff. error from kubernetes: %s", err)
-		} else {
-			return fmt.Errorf("failed decoding reader into objects: %s", err)
-		}
-	}
-
-	c.Log("building resources from updated manifest")
-	target, err := c.BuildUnstructured(namespace, targetReader)
-	if err != nil {
-		// Checking for removed Kubernetes API error so can provide a more informative error message to the user
-		// Ref: https://github.com/helm/helm/issues/7219
-		if strings.Contains(err.Error(), KubsAPIErrorMsg) {
-			return fmt.Errorf("new release manifest contains removed kubernetes api(s) for this "+
-				"kubernetes version and it is therefore unable to build the kubernetes "+
-				"objects for deployment. error from kubernetes: %s", err)
-
-		} else {
-			return fmt.Errorf("failed decoding reader into objects: %s", err)
-		}
-	}
-
-	newlyCreatedResources := []*resource.Info{}
-	updateErrors := []string{}
-
-	c.Log("checking %d resources for changes", len(target))
-	err = target.Visit(func(info *resource.Info, err error) error {
-		if err != nil {
-			return err
-		}
-
-		helper := resource.NewHelper(info.Client, info.Mapping)
-		if _, err := helper.Get(info.Namespace, info.Name, info.Export); err != nil {
-			if !errors.IsNotFound(err) {
-				return fmt.Errorf("Could not get information about the resource: %s", err)
-			}
-
-			// Since the resource does not exist, create it.
-			if err := createResource(info); err != nil {
-				return fmt.Errorf("failed to create resource: %s", err)
-			}
-			newlyCreatedResources = append(newlyCreatedResources, info)
-
-			kind := info.Mapping.GroupVersionKind.Kind
-			c.Log("Created a new %s called %q in %s\n", kind, info.Name, info.Namespace)
-			return nil
-		}
-
-		originalInfo := original.Get(info)
-
-		// The resource already exists in the cluster, but it wasn't defined in the previous release.
-		// In this case, we consider it to be a resource that was previously un-managed by the release and error out,
-		// asking for the user to intervene.
-		//
-		// See https://github.com/helm/helm/issues/1193 for more info.
-		if originalInfo == nil {
-			return fmt.Errorf(
-				"kind %s with the name %q in %q already exists in the cluster and wasn't defined in the previous release. Before upgrading, please either delete the resource from the cluster or remove it from the chart",
-				info.Mapping.GroupVersionKind.Kind,
-				info.Name,
-				info.Namespace,
-			)
-		}
-
-		if err := updateResource(c, info, originalInfo.Object, opts.Force, opts.Recreate); err != nil {
-			c.Log("error updating the resource %q:\n\t %v", info.Name, err)
-			updateErrors = append(updateErrors, err.Error())
-		}
-
-		return nil
-	})
-
-	cleanupErrors := []string{}
-
-	if opts.CleanupOnFail && (err != nil || len(updateErrors) != 0) {
-		c.Log("Cleanup on fail enabled: cleaning up newly created resources due to update manifests failures")
-		cleanupErrors = c.cleanup(newlyCreatedResources)
-	}
-
-	switch {
-	case err != nil:
-		return fmt.Errorf(strings.Join(append([]string{err.Error()}, cleanupErrors...), " && "))
-	case len(updateErrors) != 0:
-		return fmt.Errorf(strings.Join(append(updateErrors, cleanupErrors...), " && "))
-	}
-
-	for _, info := range original.Difference(target) {
-		c.Log("Deleting %q in %s...", info.Name, info.Namespace)
-
-		if err := info.Get(); err != nil {
-			c.Log("Unable to get obj %q, err: %s", info.Name, err)
-		}
-		annotations, err := metadataAccessor.Annotations(info.Object)
-		if err != nil {
-			c.Log("Unable to get annotations on %q, err: %s", info.Name, err)
-		}
-		if ResourcePolicyIsKeep(annotations) {
-			policy := annotations[ResourcePolicyAnno]
-			c.Log("Skipping delete of %q due to annotation [%s=%s]", info.Name, ResourcePolicyAnno, policy)
-			continue
-		}
-
-		if err := deleteResource(info); err != nil {
-			c.Log("Failed to delete %q, err: %s", info.Name, err)
-		}
-	}
-	if opts.ShouldWait {
-		err := c.waitForResources(time.Duration(opts.Timeout)*time.Second, target)
-
-		if opts.CleanupOnFail && err != nil {
-			c.Log("Cleanup on fail enabled: cleaning up newly created resources due to wait failure during update")
-			cleanupErrors = c.cleanup(newlyCreatedResources)
-			return fmt.Errorf(strings.Join(append([]string{err.Error()}, cleanupErrors...), " && "))
-		}
-
-		return err
-	}
-	return nil
+	return fmt.Errorf("this tiller method is not supported")
 }
 
 func (c *Client) cleanup(newlyCreatedResources []*resource.Info) (cleanupErrors []string) {

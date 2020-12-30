@@ -17,202 +17,18 @@ limitations under the License.
 package kube // import "k8s.io/helm/pkg/kube"
 
 import (
-	"time"
-
 	appsv1 "k8s.io/api/apps/v1"
-	appsv1beta1 "k8s.io/api/apps/v1beta1"
-	appsv1beta2 "k8s.io/api/apps/v1beta2"
 	v1 "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	deploymentutil "k8s.io/kubernetes/pkg/controller/deployment/util"
 )
 
 // deployment holds associated replicaSets for a deployment
 type deployment struct {
 	replicaSets *appsv1.ReplicaSet
 	deployment  *appsv1.Deployment
-}
-
-// waitForResources polls to get the current status of all pods, PVCs, and Services
-// until all are ready or a timeout is reached
-func (c *Client) waitForResources(timeout time.Duration, created Result) error {
-	c.Log("beginning wait for %d resources with timeout of %v", len(created), timeout)
-
-	kcs, err := c.KubernetesClientSet()
-	if err != nil {
-		return err
-	}
-	return wait.Poll(2*time.Second, timeout, func() (bool, error) {
-		pods := []v1.Pod{}
-		services := []v1.Service{}
-		pvc := []v1.PersistentVolumeClaim{}
-		deployments := []deployment{}
-		for _, v := range created {
-			switch value := asVersionedOrUnstructured(v).(type) {
-			case *v1.ReplicationController:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *v1.Pod:
-				pod, err := kcs.CoreV1().Pods(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, *pod)
-			case *appsv1.Deployment:
-				currentDeployment, err := kcs.AppsV1().Deployments(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				// If paused deployment will never be ready
-				if currentDeployment.Spec.Paused {
-					continue
-				}
-				// Find RS associated with deployment
-				newReplicaSet, err := deploymentutil.GetNewReplicaSet(currentDeployment, kcs.AppsV1())
-				if err != nil || newReplicaSet == nil {
-					return false, err
-				}
-				newDeployment := deployment{
-					newReplicaSet,
-					currentDeployment,
-				}
-				deployments = append(deployments, newDeployment)
-			case *appsv1beta1.Deployment:
-				currentDeployment, err := kcs.AppsV1().Deployments(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				// If paused deployment will never be ready
-				if currentDeployment.Spec.Paused {
-					continue
-				}
-				// Find RS associated with deployment
-				newReplicaSet, err := deploymentutil.GetNewReplicaSet(currentDeployment, kcs.AppsV1())
-				if err != nil || newReplicaSet == nil {
-					return false, err
-				}
-				newDeployment := deployment{
-					newReplicaSet,
-					currentDeployment,
-				}
-				deployments = append(deployments, newDeployment)
-			case *appsv1beta2.Deployment:
-				currentDeployment, err := kcs.AppsV1().Deployments(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				// If paused deployment will never be ready
-				if currentDeployment.Spec.Paused {
-					continue
-				}
-				// Find RS associated with deployment
-				newReplicaSet, err := deploymentutil.GetNewReplicaSet(currentDeployment, kcs.AppsV1())
-				if err != nil || newReplicaSet == nil {
-					return false, err
-				}
-				newDeployment := deployment{
-					newReplicaSet,
-					currentDeployment,
-				}
-				deployments = append(deployments, newDeployment)
-			case *extensions.Deployment:
-				currentDeployment, err := kcs.AppsV1().Deployments(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				// If paused deployment will never be ready
-				if currentDeployment.Spec.Paused {
-					continue
-				}
-				// Find RS associated with deployment
-				newReplicaSet, err := deploymentutil.GetNewReplicaSet(currentDeployment, kcs.AppsV1())
-				if err != nil || newReplicaSet == nil {
-					return false, err
-				}
-				newDeployment := deployment{
-					newReplicaSet,
-					currentDeployment,
-				}
-				deployments = append(deployments, newDeployment)
-			case *extensions.DaemonSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1.DaemonSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1beta2.DaemonSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1.StatefulSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1beta1.StatefulSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1beta2.StatefulSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *extensions.ReplicaSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1beta2.ReplicaSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *appsv1.ReplicaSet:
-				list, err := getPods(kcs, value.Namespace, value.Spec.Selector.MatchLabels)
-				if err != nil {
-					return false, err
-				}
-				pods = append(pods, list...)
-			case *v1.PersistentVolumeClaim:
-				claim, err := kcs.CoreV1().PersistentVolumeClaims(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				pvc = append(pvc, *claim)
-			case *v1.Service:
-				svc, err := kcs.CoreV1().Services(value.Namespace).Get(value.Name, metav1.GetOptions{})
-				if err != nil {
-					return false, err
-				}
-				services = append(services, *svc)
-			}
-		}
-		isReady := c.podsReady(pods) && c.servicesReady(services) && c.volumesReady(pvc) && c.deploymentsReady(deployments)
-		return isReady, nil
-	})
 }
 
 func (c *Client) podsReady(pods []v1.Pod) bool {
@@ -250,16 +66,6 @@ func (c *Client) volumesReady(vols []v1.PersistentVolumeClaim) bool {
 	for _, v := range vols {
 		if v.Status.Phase != v1.ClaimBound {
 			c.Log("PersistentVolumeClaim is not ready: %s/%s", v.GetNamespace(), v.GetName())
-			return false
-		}
-	}
-	return true
-}
-
-func (c *Client) deploymentsReady(deployments []deployment) bool {
-	for _, v := range deployments {
-		if !(v.replicaSets.Status.ReadyReplicas >= *v.deployment.Spec.Replicas-deploymentutil.MaxUnavailable(*v.deployment)) {
-			c.Log("Deployment is not ready: %s/%s", v.deployment.GetNamespace(), v.deployment.GetName())
 			return false
 		}
 	}
