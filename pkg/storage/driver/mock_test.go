@@ -17,6 +17,7 @@ limitations under the License.
 package driver // import "k8s.io/helm/pkg/storage/driver"
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -110,7 +111,7 @@ func (mock *MockConfigMapsInterface) Init(t *testing.T, releases ...*rspb.Releas
 }
 
 // Get returns the ConfigMap by name.
-func (mock *MockConfigMapsInterface) Get(name string, options metav1.GetOptions) (*v1.ConfigMap, error) {
+func (mock *MockConfigMapsInterface) Get(ctx context.Context, name string, options metav1.GetOptions) (*v1.ConfigMap, error) {
 	object, ok := mock.objects[name]
 	if !ok {
 		return nil, apierrors.NewNotFound(schema.GroupResource{Resource: "tests"}, name)
@@ -119,7 +120,7 @@ func (mock *MockConfigMapsInterface) Get(name string, options metav1.GetOptions)
 }
 
 // List returns the a of ConfigMaps.
-func (mock *MockConfigMapsInterface) List(opts metav1.ListOptions) (*v1.ConfigMapList, error) {
+func (mock *MockConfigMapsInterface) List(ctx context.Context, opts metav1.ListOptions) (*v1.ConfigMapList, error) {
 	var list v1.ConfigMapList
 	for _, cfgmap := range mock.objects {
 		list.Items = append(list.Items, *cfgmap)
@@ -128,7 +129,7 @@ func (mock *MockConfigMapsInterface) List(opts metav1.ListOptions) (*v1.ConfigMa
 }
 
 // Create creates a new ConfigMap.
-func (mock *MockConfigMapsInterface) Create(cfgmap *v1.ConfigMap) (*v1.ConfigMap, error) {
+func (mock *MockConfigMapsInterface) Create(ctx context.Context, cfgmap *v1.ConfigMap, opt metav1.CreateOptions) (*v1.ConfigMap, error) {
 	name := cfgmap.ObjectMeta.Name
 	if object, ok := mock.objects[name]; ok {
 		return object, apierrors.NewAlreadyExists(schema.GroupResource{Resource: "tests"}, name)
@@ -138,7 +139,7 @@ func (mock *MockConfigMapsInterface) Create(cfgmap *v1.ConfigMap) (*v1.ConfigMap
 }
 
 // Update updates a ConfigMap.
-func (mock *MockConfigMapsInterface) Update(cfgmap *v1.ConfigMap) (*v1.ConfigMap, error) {
+func (mock *MockConfigMapsInterface) Update(ctx context.Context, cfgmap *v1.ConfigMap, opt metav1.UpdateOptions) (*v1.ConfigMap, error) {
 	name := cfgmap.ObjectMeta.Name
 	if _, ok := mock.objects[name]; !ok {
 		return nil, apierrors.NewNotFound(v1.Resource("tests"), name)
@@ -148,7 +149,7 @@ func (mock *MockConfigMapsInterface) Update(cfgmap *v1.ConfigMap) (*v1.ConfigMap
 }
 
 // Delete deletes a ConfigMap by name.
-func (mock *MockConfigMapsInterface) Delete(name string, opts *metav1.DeleteOptions) error {
+func (mock *MockConfigMapsInterface) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	if _, ok := mock.objects[name]; !ok {
 		return apierrors.NewNotFound(v1.Resource("tests"), name)
 	}
@@ -188,7 +189,7 @@ func (mock *MockSecretsInterface) Init(t *testing.T, releases ...*rspb.Release) 
 }
 
 // Get returns the Secret by name.
-func (mock *MockSecretsInterface) Get(name string, options metav1.GetOptions) (*v1.Secret, error) {
+func (mock *MockSecretsInterface) Get(ctx context.Context, name string, options metav1.GetOptions) (*v1.Secret, error) {
 	object, ok := mock.objects[name]
 	if !ok {
 		return nil, apierrors.NewNotFound(schema.GroupResource{Resource: "tests"}, name)
@@ -197,7 +198,7 @@ func (mock *MockSecretsInterface) Get(name string, options metav1.GetOptions) (*
 }
 
 // List returns the a of Secret.
-func (mock *MockSecretsInterface) List(opts metav1.ListOptions) (*v1.SecretList, error) {
+func (mock *MockSecretsInterface) List(ctx context.Context, opts metav1.ListOptions) (*v1.SecretList, error) {
 	var list v1.SecretList
 	for _, secret := range mock.objects {
 		list.Items = append(list.Items, *secret)
@@ -206,7 +207,7 @@ func (mock *MockSecretsInterface) List(opts metav1.ListOptions) (*v1.SecretList,
 }
 
 // Create creates a new Secret.
-func (mock *MockSecretsInterface) Create(secret *v1.Secret) (*v1.Secret, error) {
+func (mock *MockSecretsInterface) Create(ctx context.Context, secret *v1.Secret, opt metav1.CreateOptions) (*v1.Secret, error) {
 	name := secret.ObjectMeta.Name
 	if object, ok := mock.objects[name]; ok {
 		return object, apierrors.NewAlreadyExists(schema.GroupResource{Resource: "tests"}, name)
@@ -216,7 +217,7 @@ func (mock *MockSecretsInterface) Create(secret *v1.Secret) (*v1.Secret, error) 
 }
 
 // Update updates a Secret.
-func (mock *MockSecretsInterface) Update(secret *v1.Secret) (*v1.Secret, error) {
+func (mock *MockSecretsInterface) Update(ctx context.Context, secret *v1.Secret, opt metav1.UpdateOptions) (*v1.Secret, error) {
 	name := secret.ObjectMeta.Name
 	if _, ok := mock.objects[name]; !ok {
 		return nil, apierrors.NewNotFound(schema.GroupResource{Resource: "tests"}, name)
@@ -226,7 +227,7 @@ func (mock *MockSecretsInterface) Update(secret *v1.Secret) (*v1.Secret, error) 
 }
 
 // Delete deletes a Secret by name.
-func (mock *MockSecretsInterface) Delete(name string, opts *metav1.DeleteOptions) error {
+func (mock *MockSecretsInterface) Delete(ctx context.Context, name string, opts metav1.DeleteOptions) error {
 	if _, ok := mock.objects[name]; !ok {
 		return apierrors.NewNotFound(schema.GroupResource{Resource: "tests"}, name)
 	}
